@@ -13,7 +13,8 @@ The check fails on missing metadata, JSON-LD, sitemap entries, internal links, o
 ## Deploy
 
 ```sh
-npx wrangler pages deploy . --project-name avow-docs --branch main
+npm run build && npm run check
+npx wrangler pages deploy dist --project-name avow-docs --branch main
 ```
 
-The custom domain `avow.gainratio.com` is attached to the `avow-docs` Cloudflare Pages project.
+`dist/` contains only the public web assets. The custom domain `avow.gainratio.com` is attached to the `avow-docs` Cloudflare Pages project.

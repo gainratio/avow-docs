@@ -1,71 +1,126 @@
-/**
- * Deployment gate for the Avow docs site.
- * Fails on missing metadata, broken internal links, missing sitemap entries, or missing assets.
- */
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { SAMPLE, tamperPayloadText, verify } from "../assets/verify.js";
 
-const ROOT = new URL("..", import.meta.url).pathname;
-const PAGES = ["", "docs/", "examples/", "security/", "changelog/"];
-const issues = [];
-const sitemap = readFileSync(join(ROOT, "sitemap.xml"), "utf8");
+const root = process.cwd();
+const pages = [
+  ["index.html", "https://avow.gainratio.com/"],
+  ["docs/index.html", "https://avow.gainratio.com/docs/"],
+  ["examples/index.html", "https://avow.gainratio.com/examples/"],
+  ["security/index.html", "https://avow.gainratio.com/security/"],
+  ["changelog/index.html", "https://avow.gainratio.com/changelog/"],
+];
 
-function route(path) {
-  return path === "" ? "/" : `/${path}`;
+const failures = [];
+function must(condition, message) {
+  if (!condition) failures.push(message);
 }
 
-for (const path of PAGES) {
-  const file = join(ROOT, path, "index.html");
-  if (!existsSync(file)) {
-    issues.push(`missing page ${file}`);
-    continue;
-  }
-  const html = readFileSync(file, "utf8");
-  const title = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]?.trim() ?? "";
-  const description = html.match(/<meta[^>]+name="description"[^>]+content="([^"]*)"/i)?.[1]?.trim() ?? "";
-  const canonical = html.match(/<link[^>]+rel="canonical"[^>]+href="([^"]+)"/i)?.[1] ?? "";
-  const h1s = html.match(/<h1\b/gi)?.length ?? 0;
-  const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1]);
-  const expected = `https://avow.gainratio.com${route(path)}`;
+const sitemap = readFileSync(join(root, "sitemap.xml"), "utf8");
+const robots = readFileSync(join(root, "robots.txt"), "utf8");
+const headers = readFileSync(join(root, "_headers"), "utf8");
 
-  if (title.length < 20 || title.length > 75) issues.push(`${route(path)} title length ${title.length}`);
-  if (description.length < 50 || description.length > 170) issues.push(`${route(path)} description length ${description.length}`);
-  if (canonical !== expected) issues.push(`${route(path)} canonical ${canonical}`);
-  if (h1s !== 1) issues.push(`${route(path)} h1 count ${h1s}`);
-  if (!html.includes("application/ld+json")) issues.push(`${route(path)} missing JSON-LD`);
-  if (!sitemap.includes(`<loc>${expected}</loc>`)) issues.push(`${route(path)} missing from sitemap`);
-  if (ids.length !== new Set(ids).size) issues.push(`${route(path)} duplicate id`);
+must(robots.includes("Sitemap: https://avow.gainratio.com/sitemap.xml"), "robots.txt missing sitemap");
+for (const req of [
+  "default-src 'none'",
+  "frame-ancestors 'none'",
+  "object-src 'none'",
+  "max-age=31536000; includeSubDomains",
+  "script-src 'self'",
+]) {
+  must(headers.includes(req), `_headers missing ${req}`);
+}
+
+const idsByFile = new Map();
+for (const [file] of [...pages, ["404.html", ""]]) {
+  const html = readFileSync(join(root, file), "utf8");
+  const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map((m) => m[1]);
+  must(ids.length === new Set(ids).size, `${file}: duplicate id`);
+  idsByFile.set(file, new Set(ids));
+}
+
+const titles = new Set();
+const descriptions = new Set();
+
+for (const [file, canonical] of pages) {
+  const html = readFileSync(join(root, file), "utf8");
+  const title = html.match(/<title>([^<]+)<\/title>/)?.[1]?.trim() ?? "";
+  const description = html.match(/<meta name="description" content="([^"]+)"/)?.[1]?.trim() ?? "";
+  const canonicalHref = html.match(/<link rel="canonical" href="([^"]+)"/)?.[1] ?? "";
+  const h1Count = [...html.matchAll(/<h1[\s>]/g)].length;
+
+  must(title.length >= 20 && title.length <= 75, `${file}: title length ${title.length}`);
+  must(description.length >= 60 && description.length <= 170, `${file}: description length ${description.length}`);
+  must(!titles.has(title), `${file}: duplicate title`);
+  must(!descriptions.has(description), `${file}: duplicate description`);
+  titles.add(title);
+  descriptions.add(description);
+
+  must(canonicalHref === canonical, `${file}: canonical ${canonicalHref} !== ${canonical}`);
+  must(h1Count === 1, `${file}: expected 1 h1, found ${h1Count}`);
+  must(html.includes('name="robots" content="index,follow"'), `${file}: missing index,follow`);
+  must(html.includes('href="#main"'), `${file}: missing skip link`);
+  must(/<main\b[^>]*\bid="main"/.test(html), `${file}: missing <main id="main">`);
+  for (const og of ["og:type", "og:title", "og:description", "og:url"]) {
+    must(html.includes(`property="${og}"`), `${file}: missing ${og}`);
+  }
+  const ldMatch = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
+  must(Boolean(ldMatch), `${file}: missing JSON-LD`);
+  if (ldMatch) {
+    try {
+      const ld = JSON.parse(ldMatch[1]);
+      must(ld["@context"] === "https://schema.org", `${file}: JSON-LD missing schema.org context`);
+    } catch {
+      failures.push(`${file}: invalid JSON-LD`);
+    }
+  }
+  must(sitemap.includes(`<loc>${canonical}</loc>`), `${file}: missing from sitemap.xml`);
+  must(!/\sstyle="/i.test(html), `${file}: inline style attribute violates CSP`);
+  must(!/\son[a-z]+="/i.test(html), `${file}: inline event handler violates CSP`);
+
   for (const match of html.matchAll(/href="([^"]+)"/g)) {
     const href = match[1];
-    if (href.startsWith("#") && href.length > 1 && !ids.includes(href.slice(1))) {
-      issues.push(`${route(path)} missing anchor ${href}`);
+    if (href.startsWith("http://") || href.startsWith("https://") || href.startsWith("mailto:")) continue;
+    const [pathWithQuery, hash] = href.split("#");
+    const rawPath = pathWithQuery.split("?")[0];
+    const targetFile =
+      rawPath === ""
+        ? file
+        : rawPath === "/"
+          ? "index.html"
+          : rawPath.endsWith("/")
+            ? `${rawPath.slice(1)}index.html`
+            : rawPath.slice(1);
+    must(existsSync(join(root, targetFile)), `${file}: broken link ${href}`);
+    if (hash) {
+      must(idsByFile.get(targetFile)?.has(hash), `${file}: missing anchor #${hash} in ${targetFile}`);
     }
-    if (href.startsWith("/") && href.includes("#")) {
-      const [targetPath, anchor] = href.split("#");
-      const targetFile = join(ROOT, targetPath, "index.html");
-      if (existsSync(targetFile) && !readFileSync(targetFile, "utf8").includes(`id="${anchor}"`)) {
-        issues.push(`${route(path)} missing anchor ${href}`);
-      }
-    }
-  }
-  for (const link of html.matchAll(/href="(\/[^"#?]*\/?)"/g)) {
-    const target = link[1];
-    if (target === "/") continue;
-    if (target.startsWith("/assets/")) {
-      if (!existsSync(join(ROOT, target))) issues.push(`${route(path)} missing asset ${target}`);
-      continue;
-    }
-    if (!existsSync(join(ROOT, target, "index.html"))) issues.push(`${route(path)} broken link ${target}`);
   }
 }
 
-for (const asset of ["assets/site.css", "assets/verify.js", "assets/favicon.svg", "robots.txt", "_headers"]) {
-  if (!existsSync(join(ROOT, asset))) issues.push(`missing ${asset}`);
+const notFound = readFileSync(join(root, "404.html"), "utf8");
+must(notFound.includes('name="robots" content="noindex,follow"'), "404.html: missing noindex,follow");
+must(notFound.includes('href="#main"'), "404.html: missing skip link");
+must(/<main\b[^>]*\bid="main"/.test(notFound), "404.html: missing <main id=\"main\">");
+must(!sitemap.includes("404.html"), "sitemap.xml must not list 404.html");
+
+const validOutcome = await verify(SAMPLE.payload);
+must(validOutcome.ok === true && validOutcome.reason.includes("avow.verify.ok"), "verify.js: SAMPLE payload failed WebCrypto verification");
+const tamperedFromValid = tamperPayloadText(JSON.stringify(SAMPLE.payload));
+const tamperedOutcome = await verify(tamperedFromValid);
+must(tamperedOutcome.ok === false && tamperedOutcome.reason.includes("payload hash mismatch"), "verify.js: tampered payload did not fail verification");
+const tamperedFromInvalid = tamperPayloadText("{not-json");
+must(tamperedFromInvalid.approved_by === "mallory", "verify.js: tamperPayloadText did not recover cleanly from malformed JSON");
+
+const distDir = join(root, "dist");
+if (existsSync(distDir)) {
+  for (const forbidden of ["package.json", "README.md", "SECURITY.md", "LICENSE", "scripts"]) {
+    must(!readdirSync(distDir).includes(forbidden), `dist/: leaked non-public file ${forbidden}`);
+  }
 }
 
-if (issues.length > 0) {
-  console.error(`Avow site contract failed (${issues.length}):`);
-  for (const issue of issues) console.error(`- ${issue}`);
+if (failures.length > 0) {
+  console.error(failures.join("\n"));
   process.exit(1);
 }
-console.log(`Avow site contract passed: ${PAGES.length} pages, metadata, JSON-LD, sitemap, links, anchors, assets.`);
+console.log(`Checked ${pages.length} pages + 404.html + WebCrypto receipt verifier + headers; 0 issues.`);
