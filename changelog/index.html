@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Avow changelog — releases and compatibility</title>
+<meta name="description" content="Avow release notes: 0.5.3 legacy receipt verification, 0.5.2 npm rename, 0.5.1 CLI extra, and 0.5.0 receipt schema.">
+<link rel="canonical" href="https://avow.gainratio.com/changelog/">
+<meta name="robots" content="index,follow">
+<meta property="og:title" content="Avow changelog">
+<meta property="og:description" content="Release notes and compatibility changes for Avow.">
+<meta property="og:url" content="https://avow.gainratio.com/changelog/">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/assets/site.css">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"TechArticle","headline":"Avow changelog","description":"Release notes and compatibility changes for Avow.","url":"https://avow.gainratio.com/changelog/","author":{"@type":"Organization","name":"GainRatio"}}
+</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header"><div class="wrap nav"><a class="brand" href="/"><span class="mark">A</span> Avow</a><nav class="nav-links"><a href="/docs/">Docs</a><a href="/examples/">Examples</a><a href="/security/">Security</a><a href="/changelog/" aria-current="page">Changelog</a><a href="https://github.com/gainratio/avow">GitHub ↗</a></nav></div></header>
+
+<main id="main" class="wrap docs-layout">
+  <nav class="docs-nav" aria-label="Changelog">
+    <h2>Releases</h2>
+    <a href="#0-5-3">0.5.3</a>
+    <a href="#0-5-2">0.5.2</a>
+    <a href="#0-5-1">0.5.1</a>
+    <a href="#0-5-0">0.5.0</a>
+  </nav>
+  <div class="docs-body">
+    <p class="eyebrow">Changelog</p>
+    <h1>Release notes.</h1>
+    <p class="lede">Compatibility changes are called out explicitly because a receipt is meant to outlive the application that created it.</p>
+
+    <h2 id="0-5-3">0.5.3 — legacy receipts verify again</h2>
+    <p>Receipts sealed by Avow 0.4.x and older now verify again in Python and TypeScript. 0.5.0 made <code>schema</code> required and refused every receipt without it.</p>
+    <ul>
+      <li>A receipt with no <code>schema</code> key is accepted as the legacy form and checked under the same payload hash and Ed25519 rules.</li>
+      <li>New receipts still carry <code>schema: "avow.receipt/v1"</code>.</li>
+      <li>A present but unknown schema is refused with <code>avow.receipt_schema_mismatch</code>.</li>
+      <li>Tests pin receipts sealed by the released <code>avow==0.4.1</code> and <code>@edgeproc/avow@0.4.1</code>.</li>
+    </ul>
+
+    <h2 id="0-5-2">0.5.2 — npm rename</h2>
+    <p>The npm package is now <code>@gainratio/avow</code>. The old <code>@edgeproc/avow</code> name remains installable for 0.5.1 and older but is deprecated. No code change.</p>
+
+    <h2 id="0-5-1">0.5.1 — CLI moved to an extra</h2>
+    <p><code>pip install avow</code> installs the library only. The <code>avow</code> command needs <code>pip install "avow[cli]"</code>. This resolves a Typer conflict with <code>edge-proc</code> and <code>assay-engine</code>.</p>
+
+    <h2 id="0-5-0">0.5.0 — first release from this repository</h2>
+    <p>0.5.0 added the <code>avow.receipt/v1</code> schema and the current npm API. It also changed the wire contract; the 0.5.3 fix restores legacy receipt verification.</p>
+
+    <div class="note">The authoritative changelog is <a href="https://github.com/gainratio/avow/blob/main/CHANGELOG.md">CHANGELOG.md in the repository</a>. The site summarizes releases; the repository records every commit.</div>
+
+    <h2>Next</h2>
+    <p><a href="/docs/">Documentation</a> · <a href="/examples/">Examples</a> · <a href="/security/">Security</a></p>
+  </div>
+</main>
+
+<footer class="site-footer"><div class="wrap footer-grid"><span>© 2026 GainRatio · <a href="https://gainratio.com/">gainratio.com</a></span><span><a href="https://github.com/gainratio/avow">GitHub</a> · <a href="https://pypi.org/project/avow/">PyPI</a> · <a href="https://open-source.gainratio.com/">Open source</a></span></div></footer>
+</body>
+</html>

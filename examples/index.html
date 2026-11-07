@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Avow examples — CLI, Python, and TypeScript</title>
+<meta name="description" content="Copyable Avow examples: sign and verify from the CLI, use the Python library, verify a receipt in TypeScript, and append to a hash-linked ledger.">
+<link rel="canonical" href="https://avow.gainratio.com/examples/">
+<meta name="robots" content="index,follow">
+<meta property="og:title" content="Avow examples — CLI, Python, and TypeScript">
+<meta property="og:description" content="Copyable signed-receipt examples for the CLI, Python, and TypeScript.">
+<meta property="og:url" content="https://avow.gainratio.com/examples/">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/assets/site.css">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"TechArticle","headline":"Avow examples","description":"CLI, Python, and TypeScript examples for signed JSON receipts.","url":"https://avow.gainratio.com/examples/","author":{"@type":"Organization","name":"GainRatio"}}
+</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap nav">
+    <a class="brand" href="/"><span class="mark">A</span> Avow</a>
+    <nav class="nav-links" aria-label="Primary">
+      <a href="/docs/">Docs</a>
+      <a href="/examples/" aria-current="page">Examples</a>
+      <a href="/security/">Security</a>
+      <a href="/changelog/">Changelog</a>
+      <a href="https://github.com/gainratio/avow">GitHub ↗</a>
+      <a class="nav-cta" href="/docs/#install">Install</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main" class="wrap docs-layout">
+  <nav class="docs-nav" aria-label="Examples">
+    <h2>Examples</h2>
+    <a href="#cli">CLI</a>
+    <a href="#python">Python</a>
+    <a href="#typescript">TypeScript</a>
+    <a href="#ledger">Ledger</a>
+    <a href="#tamper">Tamper detection</a>
+  </nav>
+  <div class="docs-body">
+    <p class="eyebrow">Examples</p>
+    <h1>Copy, run, verify.</h1>
+    <p class="lede">Every example below uses the public Avow API. The expected output is the output the project tests, not an illustration.</p>
+
+    <h2 id="cli">CLI: a release decision</h2>
+    <pre><code>pip install "avow[cli]&gt;=0.5.3"
+
+avow keygen --out signing.key
+cat &gt; decision.json &lt;&lt;'JSON'
+{"release":"checkout-api 2.4.1","approved_by":"dana","tests_passed":true}
+JSON
+avow sign --payload decision.json --key signing.key --out receipt.json
+avow verify --receipt receipt.json --public-key signing.key.pub</code></pre>
+    <pre><code>avow.keygen.ok
+avow.sign.ok
+avow.verify.ok</code></pre>
+    <p>Give the verifier only <code>signing.key.pub</code>. Keep <code>signing.key</code> on the signing machine.</p>
+
+    <h2 id="python">Python: library only</h2>
+    <pre><code>from avow import generate_signing_key, public_key_hex, sign_payload, verify_receipt
+from avow.errors import AvowError
+
+private_key = generate_signing_key()
+public_key = public_key_hex(private_key)
+
+receipt = sign_payload(
+    {"service": "checkout-api", "decision": "approved"},
+    private_key,
+)
+verify_receipt(receipt, expected_public_key=public_key)
+print("original: verified")
+
+altered = receipt.model_copy(
+    update={"payload": {"service": "checkout-api", "decision": "rejected"}}
+)
+try:
+    verify_receipt(altered, expected_public_key=public_key)
+except AvowError as error:
+    print("altered:", error.code)</code></pre>
+    <pre><code>original: verified
+altered: avow.payload_hash_mismatch</code></pre>
+
+    <h2 id="typescript">TypeScript: sign and verify</h2>
+    <pre><code>import {
+  generateSeedHex,
+  publicKeyHex,
+  signPayload,
+  verifySignature,
+} from "@gainratio/avow";
+
+const seed = generateSeedHex();
+const pinned = await publicKeyHex(seed);
+const receipt = await signPayload({ artifact: "sha256:abc" }, seed);
+await verifySignature(receipt, pinned);
+console.log("avow.verify.ok");</code></pre>
+    <p><code>verifySignature</code> takes the public key from your configuration, never from the receipt. A receipt signed by a different key fails with the signer mismatch error.</p>
+
+    <h2 id="ledger">Ledger: ordered evidence</h2>
+    <pre><code>avow ledger append --receipt receipt.json --ledger evidence.jsonl --head evidence.head
+avow ledger verify --ledger evidence.jsonl --head evidence.head --public-key signing.key.pub</code></pre>
+    <pre><code>avow.ledger.append.ok
+avow.ledger.verify.ok</code></pre>
+    <p>The ledger adds order and a final head on top of individual receipt signatures. If an append fails after installing a head, the command exits <code>3</code> with <code>avow.ledger_recovery_required</code>; follow the recovery steps instead of retrying.</p>
+
+    <h2 id="tamper">Tamper detection</h2>
+    <pre><code>sed 's/dana/mallory/' receipt.json &gt; tampered.json
+avow verify --receipt tampered.json --public-key signing.key.pub
+echo "exit code: $?"</code></pre>
+    <pre><code>avow.payload_hash_mismatch
+exit code: 2</code></pre>
+    <p>Changing one character of the payload changes the canonical hash. The verifier refuses before accepting the signature, so a forger cannot reword the record and keep the original signature.</p>
+
+    <h2>More</h2>
+    <p>The repository contains a runnable evidence-loop example that proves the wheel outside the source tree:</p>
+    <pre><code>bash examples/run_evidence_loop.sh</code></pre>
+    <p><a href="https://github.com/gainratio/avow/tree/main/examples">Browse all examples on GitHub</a> · <a href="/docs/">Back to documentation</a></p>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap footer-grid">
+    <span>© 2026 GainRatio · <a href="https://gainratio.com/">gainratio.com</a></span>
+    <span><a href="https://github.com/gainratio/avow">GitHub</a> · <a href="https://pypi.org/project/avow/">PyPI</a> · <a href="https://open-source.gainratio.com/">Open source</a></span>
+  </div>
+</footer>
+</body>
+</html>

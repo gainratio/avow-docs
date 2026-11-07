@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Avow — signed JSON receipts anyone can verify offline</title>
+<meta name="description" content="Avow signs a JSON record into a receipt anyone can verify offline. Python and TypeScript, Ed25519 signatures, no server, MIT licensed.">
+<link rel="canonical" href="https://avow.gainratio.com/">
+<meta name="robots" content="index,follow">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Avow — signed JSON receipts anyone can verify offline">
+<meta property="og:description" content="Turn a JSON record into a portable, tamper-evident receipt. Verify it with a public key, no server and no network.">
+<meta property="og:url" content="https://avow.gainratio.com/">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/assets/site.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareSourceCode",
+  "name": "Avow",
+  "description": "Sign a JSON record into a receipt anyone can verify offline.",
+  "codeRepository": "https://github.com/gainratio/avow",
+  "programmingLanguage": ["Python", "TypeScript"],
+  "license": "https://opensource.org/license/mit",
+  "url": "https://avow.gainratio.com/",
+  "sameAs": [
+    "https://github.com/gainratio/avow",
+    "https://pypi.org/project/avow/",
+    "https://www.npmjs.com/package/@gainratio/avow"
+  ]
+}
+</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="wrap nav">
+    <a class="brand" href="/"><span class="mark">A</span> Avow</a>
+    <nav class="nav-links" aria-label="Primary">
+      <a href="/docs/">Docs</a>
+      <a href="/examples/">Examples</a>
+      <a href="/security/">Security</a>
+      <a href="/changelog/">Changelog</a>
+      <a href="https://github.com/gainratio/avow">GitHub ↗</a>
+      <a class="nav-cta" href="#quickstart">Install</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+  <section class="hero">
+    <div class="wrap">
+      <p class="eyebrow">Open source · Python + TypeScript · MIT</p>
+      <h1>Receipts anyone can check offline.</h1>
+      <p class="lede">Avow turns a JSON record into a small signed file. Give the checker your public key once. They can confirm the record is unchanged — and who signed it — on their own machine, without a server, an account, or a network connection.</p>
+      <div class="hero-actions">
+        <a class="btn" href="#quickstart">Install and sign a record</a>
+        <a class="btn secondary" href="/docs/">Read the docs</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="band" aria-labelledby="verify-heading">
+    <div class="wrap grid-2">
+      <div>
+        <h2 id="verify-heading">Verify a real receipt in this page</h2>
+        <p>The receipt below is the example from the Avow README. “Verify” runs Ed25519 verification and the SHA-256 fingerprint check in your browser. “Tamper” changes one value and verifies again. No data leaves this page.</p>
+        <ul class="checks">
+          <li>Public key and signature are embedded in the receipt.</li>
+          <li>The payload is canonicalised with RFC 8785 before it is checked.</li>
+          <li>A changed byte changes the hash and the signature check fails.</li>
+        </ul>
+        <p><a href="https://github.com/gainratio/avow">Read the implementation</a> before trusting the demo.</p>
+      </div>
+      <div class="demo">
+        <div class="demo-head"><strong>avow.receipt/v1</strong><span>browser verifier</span></div>
+        <label class="skip" for="receipt-payload">Receipt payload JSON</label>
+        <textarea id="receipt-payload" spellcheck="false"></textarea>
+        <div class="demo-actions">
+          <button class="btn small" id="verify" type="button">Verify receipt</button>
+          <button class="btn small secondary" id="tamper" type="button">Tamper with it</button>
+          <button class="btn small secondary" id="reset" type="button">Reset</button>
+        </div>
+        <p class="demo-result idle" id="demo-result" role="status" aria-live="polite">Press “Verify receipt” to check the signature.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="band alt" aria-labelledby="problem-heading">
+    <div class="wrap">
+      <h2 id="problem-heading">A checksum is not a signature</h2>
+      <p class="muted">Teams often have to show later what they decided: that a release was approved, that tests passed, that a setting was what they say it was. Usually that record sits in a database or a log the team controls. An auditor, customer, or regulator has to take their word that nobody edited it.</p>
+      <p class="muted">A plain checksum does not fix that. Anyone who can change the record can recompute the checksum too. Avow gives the record a signature, so verification needs only a public key that was handed out ahead of time.</p>
+    </div>
+  </section>
+
+  <section class="band" aria-labelledby="quickstart-heading">
+    <div class="wrap">
+      <h2 id="quickstart-heading">Try it in four commands</h2>
+      <p>Python 3.12 or newer. Install the CLI extra, create a key, sign a record, and verify it.</p>
+      <pre><code>pip install "avow[cli]&gt;=0.5.3"
+
+avow keygen --out signing.key
+echo '{"release": "checkout-api 2.4.1", "approved_by": "dana", "tests_passed": true}' &gt; decision.json
+avow sign --payload decision.json --key signing.key --out receipt.json
+avow verify --receipt receipt.json --public-key signing.key.pub</code></pre>
+      <pre class="tight"><code>avow.keygen.ok
+avow.sign.ok
+avow.verify.ok</code></pre>
+      <p>Then change the approver and verify again:</p>
+      <pre><code>sed 's/dana/mallory/' receipt.json &gt; tampered.json
+avow verify --receipt tampered.json --public-key signing.key.pub
+echo "exit code: $?"</code></pre>
+      <pre class="tight"><code>avow.payload_hash_mismatch
+exit code: 2</code></pre>
+      <div class="hero-actions"><a class="btn" href="/docs/">Full getting started</a><a class="btn secondary" href="/examples/">More examples</a></div>
+    </div>
+  </section>
+
+  <section class="band alt" aria-labelledby="anatomy-heading">
+    <div class="wrap grid-2">
+      <div>
+        <h2 id="anatomy-heading">What is inside a receipt</h2>
+        <p>A receipt is ordinary JSON. The payload stays readable; the signature proves it has not changed.</p>
+        <table>
+          <thead><tr><th>Field</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><code>schema</code></td><td><code>avow.receipt/v1</code></td></tr>
+            <tr><td><code>payload</code></td><td>Your JSON record, in plain text</td></tr>
+            <tr><td><code>payload_hash</code></td><td>SHA-256 of the RFC 8785 canonical payload</td></tr>
+            <tr><td><code>public_key</code></td><td>Ed25519 public key that signed it</td></tr>
+            <tr><td><code>signature</code></td><td>64-byte Ed25519 signature</td></tr>
+          </tbody>
+        </table>
+        <div class="note">Receipts are not encrypted. If the record contains a secret, encrypt or redact it before signing. Avow proves integrity and signer identity, not confidentiality.</div>
+      </div>
+      <div>
+        <pre><code>{
+  "schema": "avow.receipt/v1",
+  "payload": {
+    "approved_by": "dana",
+    "release": "checkout-api 2.4.1",
+    "tests_passed": true
+  },
+  "payload_hash": "sha256:64a25947…",
+  "public_key": "47c7e147…",
+  "signature": "20e8b0a7…"
+}</code></pre>
+        <h3 class="spaced">Why canonical JSON?</h3>
+        <p>Two JSON documents can mean the same thing but have different whitespace or key order. RFC 8785 (JCS) defines one canonical byte sequence, so the signature is stable across languages and implementations.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="band" aria-labelledby="languages-heading">
+    <div class="wrap">
+      <h2 id="languages-heading">Python and TypeScript, same receipts</h2>
+      <div class="grid-3">
+        <div class="card"><span class="step">PYTHON</span><h3>Library</h3><pre><code>from avow import generate_signing_key, public_key_hex, sign_payload, verify_receipt
+
+private_key = generate_signing_key()
+public_key = public_key_hex(private_key)
+receipt = sign_payload({"decision": "approved"}, private_key)
+verify_receipt(receipt, expected_public_key=public_key)</code></pre><p><a href="/examples/#python">Python examples</a></p></div>
+        <div class="card"><span class="step">CLI</span><h3>Keygen, sign, verify</h3><pre><code>avow keygen --out signing.key
+avow sign --payload decision.json \
+  --key signing.key --out receipt.json
+avow verify --receipt receipt.json \
+  --public-key signing.key.pub</code></pre><p><a href="/docs/#cli">CLI reference</a></p></div>
+        <div class="card"><span class="step">TYPESCRIPT</span><h3>Read and write receipts</h3><pre><code>import { verifySignature } from "@gainratio/avow";
+
+await verifySignature(receipt, pinnedPublicKey);</code></pre><p><a href="/examples/#typescript">TypeScript examples</a></p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band alt" aria-labelledby="limits-heading">
+    <div class="wrap">
+      <h2 id="limits-heading">What Avow does not do</h2>
+      <div class="grid-3">
+        <div class="card"><h3>Not a timestamp authority</h3><p>The receipt proves who signed a record and that it has not changed. It does not independently prove when it was signed.</p></div>
+        <div class="card"><h3>Not encryption</h3><p>The payload is plain text. Use encryption or redaction first if the record is confidential.</p></div>
+        <div class="card"><h3>Not key management</h3><p>You generate and distribute keys. Losing a private key means you cannot sign new receipts with it; losing a public key means verifiers cannot check.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band faq" aria-labelledby="faq-heading">
+    <div class="wrap">
+      <h2 id="faq-heading">Questions</h2>
+      <h3>Do verifiers need to install Avow?</h3>
+      <p>The CLI and Python library can verify locally. The receipt format is documented, so an independent implementation can verify with the same Ed25519 and RFC 8785 rules.</p>
+      <h3>What happens if one value changes?</h3>
+      <p>The canonical payload hash changes, so <code>avow verify</code> exits with <code>avow.payload_hash_mismatch</code> (exit code 2). A valid signature over a different payload still fails the expected hash.</p>
+      <h3>Can I verify with someone else’s key?</h3>
+      <p>Yes. Verification takes the expected public key. A receipt signed by a different key is refused with <code>avow.signer_mismatch</code>.</p>
+      <h3>Which Python versions are supported?</h3>
+      <p>Python 3.12 or newer for the CLI and library. The TypeScript package targets Node 22.13+ and browsers.</p>
+      <h3>Is Avow a compliance product?</h3>
+      <p>No. It is an open-source integrity primitive. It can support an audit workflow, but it does not by itself make a process compliant.</p>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap footer-grid">
+    <span>© 2026 GainRatio · <a href="https://gainratio.com/">gainratio.com</a></span>
+    <span><a href="https://github.com/gainratio/avow">GitHub</a> · <a href="https://pypi.org/project/avow/">PyPI</a> · <a href="https://www.npmjs.com/package/@gainratio/avow">npm</a> · <a href="https://open-source.gainratio.com/">Open source</a></span>
+  </div>
+</footer>
+<script src="/assets/verify.js" defer></script>
+</body>
+</html>

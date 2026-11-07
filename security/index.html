@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Avow security — threat model and reporting</title>
+<meta name="description" content="What Avow proves, what it does not, how to report a vulnerability, and the key-handling and replay boundaries operators must own.">
+<link rel="canonical" href="https://avow.gainratio.com/security/">
+<meta name="robots" content="index,follow">
+<meta property="og:title" content="Avow security — threat model and reporting">
+<meta property="og:description" content="Avow proves integrity and a pinned signer. It is not encryption, a timestamp authority, or replay protection.">
+<meta property="og:url" content="https://avow.gainratio.com/security/">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/assets/site.css">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"TechArticle","headline":"Avow security","description":"Threat model, security boundaries, and vulnerability reporting for Avow.","url":"https://avow.gainratio.com/security/","author":{"@type":"Organization","name":"GainRatio"}}
+</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap nav">
+    <a class="brand" href="/"><span class="mark">A</span> Avow</a>
+    <nav class="nav-links" aria-label="Primary">
+      <a href="/docs/">Docs</a>
+      <a href="/examples/">Examples</a>
+      <a href="/security/" aria-current="page">Security</a>
+      <a href="https://github.com/gainratio/avow">GitHub ↗</a>
+      <a class="nav-cta" href="/docs/#install">Install</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main" class="wrap docs-layout">
+  <nav class="docs-nav" aria-label="Security">
+    <h2>Security</h2>
+    <a href="#proves">What it proves</a>
+    <a href="#boundaries">Boundaries</a>
+    <a href="#keys">Keys</a>
+    <a href="#replay">Replay</a>
+    <a href="#supply">Supply chain</a>
+    <a href="#report">Report</a>
+  </nav>
+  <div class="docs-body">
+    <p class="eyebrow">Security</p>
+    <h1>Integrity, with explicit boundaries.</h1>
+    <p class="lede">Avow is a small cryptographic primitive. The useful security review is not “is it encrypted?” but “what exactly does a valid receipt prove, and what is still the operator’s job?”</p>
+
+    <h2 id="proves">What a valid receipt proves</h2>
+    <ul class="checks">
+      <li>The payload is byte-for-byte the payload that was signed, after RFC 8785 canonicalisation.</li>
+      <li>The Ed25519 signature matches the payload.</li>
+      <li>The signer key matches the public key the verifier supplied, not the key embedded in the receipt.</li>
+    </ul>
+    <p>A receipt carries its own <code>public_key</code> for convenience. That field is not a trust anchor. A verifier must obtain the expected key through configuration or a distribution channel it already trusts; otherwise an attacker can supply both a forged payload and the matching key.</p>
+
+    <h2 id="boundaries">What it does not prove</h2>
+    <table>
+      <thead><tr><th>Not provided</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td>Confidentiality</td><td>The payload is plain text in the receipt. Encrypt or redact before signing.</td></tr>
+        <tr><td>Truth or correctness</td><td>A signature proves who signed, not whether the signed claim is true.</td></tr>
+        <tr><td>Freshness or wall-clock time</td><td>There is no trusted timestamp in the receipt.</td></tr>
+        <tr><td>Replay protection</td><td>A valid receipt verifies every time it is presented.</td></tr>
+        <tr><td>Key management</td><td>The operator generates, stores, rotates, and distributes keys.</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="keys">Key handling</h2>
+    <p>Python’s key loader refuses key files that are readable by group or others and reports <code>avow.key_permissions_insecure</code>. The TypeScript package does not read key files; the signing seed is unencrypted hex held by the caller, so storage is the integrating application’s responsibility.</p>
+    <ul>
+      <li>Generate keys on the machine that signs.</li>
+      <li>Distribute only the public key, through a channel independent of the receipts.</li>
+      <li>Keep an offline backup of the private key; losing it prevents new signatures with that identity.</li>
+      <li>Plan rotation: a new key needs a new pinned public key at every verifier.</li>
+    </ul>
+
+    <h2 id="replay">Replay protection is caller-owned</h2>
+    <p>A receipt carries no nonce, audience, or expiry that Avow enforces. If replay matters, sign your own <code>nonce</code>, <code>audience</code>, and <code>expires_at</code> claims into the payload, then check them after <code>verify</code> against your own trusted clock and seen-nonce store. The repository’s operations guide includes the recipe.</p>
+
+    <h2 id="supply">Supply chain</h2>
+    <p>Release workflows use short-lived PyPI and npm OIDC identities rather than stored registry write tokens. Eligibility, tests, dependency and secret scans, artifact builds, and clean-install checks run before either publishing job can request an OIDC identity. Each registry is checked independently; an existing mismatch stops the workflow instead of overwriting it.</p>
+
+    <h2>Supported versions</h2>
+    <p><code>0.5.3</code> of both the Python package and <code>@gainratio/avow</code> is the supported release. Python releases 0.1.0 through 0.4.1 shipped stray top-level packages and are unsupported.</p>
+
+    <h2 id="report">Report a vulnerability</h2>
+    <p>Report suspected vulnerabilities privately through GitHub’s private vulnerability reporting for <a href="https://github.com/gainratio/avow">gainratio/avow</a>. Include:</p>
+    <ul>
+      <li>the affected operation and version;</li>
+      <li>a minimal reproduction using non-sensitive data;</li>
+      <li>the security impact;</li>
+      <li>any mitigation you have already tested.</li>
+    </ul>
+    <p>Do not include private keys, production payloads, or other secrets. Allow time to reproduce and assess before public disclosure.</p>
+
+    <h2>Read next</h2>
+    <p><a href="/docs/">Documentation</a> · <a href="/examples/">Examples</a> · <a href="https://github.com/gainratio/avow/blob/main/SECURITY.md">SECURITY.md</a> · <a href="https://github.com/gainratio/avow/blob/main/docs/OPERATIONS.md">Operations guide</a></p>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap footer-grid">
+    <span>© 2026 GainRatio · <a href="https://gainratio.com/">gainratio.com</a></span>
+    <span><a href="https://github.com/gainratio/avow">GitHub</a> · <a href="https://pypi.org/project/avow/">PyPI</a> · <a href="https://open-source.gainratio.com/">Open source</a></span>
+  </div>
+</footer>
+</body>
+</html>

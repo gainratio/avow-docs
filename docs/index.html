@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Avow documentation — install, sign, verify</title>
+<meta name="description" content="Avow getting started: install the Python CLI, sign JSON records, verify receipts, use the Python and TypeScript libraries, and handle stable error codes.">
+<link rel="canonical" href="https://avow.gainratio.com/docs/">
+<meta name="robots" content="index,follow">
+<meta property="og:title" content="Avow documentation — install, sign, verify">
+<meta property="og:description" content="Getting started with signed JSON receipts in Python and TypeScript.">
+<meta property="og:url" content="https://avow.gainratio.com/docs/">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/assets/site.css">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"TechArticle","headline":"Avow documentation","description":"Install Avow, sign JSON records, verify receipts, and handle errors.","url":"https://avow.gainratio.com/docs/","author":{"@type":"Organization","name":"GainRatio"},"isPartOf":{"@type":"SoftwareSourceCode","name":"Avow","url":"https://avow.gainratio.com/"}}
+</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap nav">
+    <a class="brand" href="/"><span class="mark">A</span> Avow</a>
+    <nav class="nav-links" aria-label="Primary">
+      <a href="/docs/" aria-current="page">Docs</a>
+      <a href="/examples/">Examples</a>
+      <a href="/security/">Security</a>
+      <a href="/changelog/">Changelog</a>
+      <a href="https://github.com/gainratio/avow">GitHub ↗</a>
+      <a class="nav-cta" href="#install">Install</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main" class="wrap docs-layout">
+  <nav class="docs-nav" aria-label="Docs">
+    <h2>Documentation</h2>
+    <a href="#install" aria-current="page">Install</a>
+    <a href="#cli">CLI</a>
+    <a href="#python">Python</a>
+    <a href="#typescript">TypeScript</a>
+    <a href="#receipt">Receipt format</a>
+    <a href="#errors">Error codes</a>
+    <a href="#ledger">Ledger</a>
+    <a href="#operations">Operations</a>
+  </nav>
+
+  <div class="docs-body">
+    <p class="eyebrow">Documentation</p>
+    <h1>Sign a record. Verify it anywhere.</h1>
+    <p class="lede">Avow is a Python and TypeScript library for portable, tamper-evident JSON receipts. This page covers installation, the three core operations, and the rules that keep receipts verifiable across languages.</p>
+
+    <h2 id="install">Install</h2>
+    <p>Python 3.12 or newer. The library is <code>avow</code>; the command needs the <code>cli</code> extra.</p>
+    <pre><code>pip install "avow[cli]&gt;=0.5.3"</code></pre>
+    <p>For only the Python library:</p>
+    <pre><code>pip install avow</code></pre>
+    <p>TypeScript, Node 22.13 or newer:</p>
+    <pre><code>npm install @gainratio/avow</code></pre>
+    <div class="note">The older <code>@edgeproc/avow</code> package is deprecated. Version 0.5.3 of <code>@gainratio/avow</code> can verify receipts sealed by 0.4.x and older.</div>
+
+    <h2 id="cli">CLI</h2>
+    <p>Generate a signing key and its public verifier key:</p>
+    <pre><code>avow keygen --out signing.key</code></pre>
+    <p><code>signing.key</code> is the private key. Keep it private. <code>signing.key.pub</code> is the public key you give to verifiers ahead of time.</p>
+    <p>Sign a JSON file:</p>
+    <pre><code>avow sign --payload decision.json --key signing.key --out receipt.json</code></pre>
+    <p>Verify against the pinned public key:</p>
+    <pre><code>avow verify --receipt receipt.json --public-key signing.key.pub</code></pre>
+    <p>Successful commands print stable success lines and exit 0:</p>
+    <pre><code>avow.keygen.ok
+avow.sign.ok
+avow.verify.ok</code></pre>
+    <p>Every refusal is a stable code on standard output, with no rejected JSON, key material, paths, or traceback. Ordinary validation and I/O failures exit <code>2</code>.</p>
+
+    <h2 id="python">Python</h2>
+    <pre><code>from avow import generate_signing_key, public_key_hex, sign_payload, verify_receipt
+from avow.errors import AvowError
+
+private_key = generate_signing_key()
+public_key = public_key_hex(private_key)
+receipt = sign_payload({"service": "checkout-api", "decision": "approved"}, private_key)
+verify_receipt(receipt, expected_public_key=public_key)
+
+altered = receipt.model_copy(update={"payload": {"service": "checkout-api", "decision": "rejected"}})
+try:
+    verify_receipt(altered, expected_public_key=public_key)
+except AvowError as error:
+    print(error.code)</code></pre>
+    <p>The public key must come from your own configuration or distribution channel. Do not learn the expected key from the receipt you are checking; that would let a forger supply both halves.</p>
+
+    <h2 id="typescript">TypeScript</h2>
+    <pre><code>import {
+  generateSeedHex,
+  publicKeyHex,
+  signPayload,
+  verifySignature,
+} from "@gainratio/avow";
+
+const signingSeed = generateSeedHex();
+const pinnedPublicKey = await publicKeyHex(signingSeed);
+const receipt = await signPayload({ artifact: "sha256:abc" }, signingSeed);
+await verifySignature(receipt, pinnedPublicKey);</code></pre>
+    <p>The TypeScript package never reads key files. The signing seed is unencrypted hex held by the caller, so storage is the integrating application’s responsibility. There is no KMS/HSM seam in this package.</p>
+
+    <h2 id="receipt">Receipt format</h2>
+    <p>A receipt is JSON with five fields:</p>
+    <table>
+      <thead><tr><th>Field</th><th>Type</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td><code>schema</code></td><td>string</td><td><code>avow.receipt/v1</code>; absent only on legacy receipts</td></tr>
+        <tr><td><code>payload</code></td><td>JSON value</td><td>The record being protected, in plain text</td></tr>
+        <tr><td><code>payload_hash</code></td><td>string</td><td><code>sha256:</code> plus hex of the RFC 8785 canonical payload</td></tr>
+        <tr><td><code>public_key</code></td><td>hex string</td><td>Ed25519 public key</td></tr>
+        <tr><td><code>signature</code></td><td>hex string</td><td>Ed25519 signature over the canonical payload</td></tr>
+      </tbody>
+    </table>
+    <p>Canonicalisation matters: two JSON documents can represent the same object with different key order or whitespace. RFC 8785 (JCS) fixes one byte sequence so Python and TypeScript produce the same signature.</p>
+    <p>Supported payloads are I-JSON-compatible: objects, arrays, Unicode strings, finite numbers, booleans, and <code>null</code>. Integers must be within ±(2^53−1); encode larger exact quantities as strings. <code>NaN</code>, infinities, lone surrogates, and non-string keys are rejected before signing.</p>
+
+    <h2 id="errors">Error codes</h2>
+    <table>
+      <thead><tr><th>Code</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td><code>avow.payload_hash_mismatch</code></td><td>The payload no longer matches the signed fingerprint.</td></tr>
+        <tr><td><code>avow.signer_mismatch</code></td><td>The receipt was signed by a different key than the one supplied.</td></tr>
+        <tr><td><code>avow.key_permissions_insecure</code></td><td>A signing-key file is readable by group or others.</td></tr>
+        <tr><td><code>avow.ledger_recovery_required</code></td><td>A ledger append failed after the head moved; do not retry blindly.</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="ledger">Ledger</h2>
+    <p>Avow can append receipts to a hash-linked ledger and verify order and head:</p>
+    <pre><code>avow ledger append --receipt receipt.json --ledger evidence.jsonl --head evidence.head
+avow ledger verify --ledger evidence.jsonl --head evidence.head --public-key signing.key.pub</code></pre>
+    <p>Success lines are <code>avow.ledger.append.ok</code> and <code>avow.ledger.verify.ok</code>. A durable append whose head was not installed, or a later append against a mismatched head, exits <code>3</code> with <code>avow.ledger_recovery_required</code>.</p>
+
+    <h2 id="operations">Operations</h2>
+    <h3>Key handling</h3>
+    <p>The Python loader refuses a key file that is group- or world-readable. Generate keys on the machine that signs, distribute only the public key, and keep an offline copy of the private key.</p>
+    <h3>Replay protection</h3>
+    <p>A valid receipt verifies identically every time it is presented. Avow does not decide whether a receipt is fresh. If replay matters, sign your own nonce, audience, and expiry claims into the payload and check them after verification.</p>
+    <h3>What verification proves</h3>
+    <p>Verification proves the payload is unchanged and was signed by the caller-pinned key. It does not prove correctness, honesty, freshness, or wall-clock time. It is not encryption; the payload is readable.</p>
+
+    <h2>Next</h2>
+    <ul>
+      <li><a href="/examples/">Copyable CLI, Python, and TypeScript examples</a></li>
+      <li><a href="/security/">Threat model and reporting</a></li>
+      <li><a href="https://github.com/gainratio/avow/blob/main/docs/ARCHITECTURE.md">Architecture</a> and <a href="https://github.com/gainratio/avow/blob/main/docs/OPERATIONS.md">operations</a></li>
+    </ul>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap footer-grid">
+    <span>© 2026 GainRatio · <a href="https://gainratio.com/">gainratio.com</a></span>
+    <span><a href="https://github.com/gainratio/avow">GitHub</a> · <a href="https://pypi.org/project/avow/">PyPI</a> · <a href="https://open-source.gainratio.com/">Open source</a></span>
+  </div>
+</footer>
+</body>
+</html>
