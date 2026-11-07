@@ -176,7 +176,16 @@ ul.checks li::before {
   .docs-nav { position: static; display: flex; flex-wrap: wrap; gap: 14px; }
   .docs-nav h2 { width: 100%; margin-bottom: 0; }
   .docs-nav a { padding: 2px 0; }
-  .nav-links { display: none; }
+  .nav { flex-wrap: wrap; padding: 10px 0; }
+  .nav-links {
+    display: flex;
+    width: 100%;
+    justify-content: flex-start;
+    gap: 6px 16px;
+    flex-wrap: wrap;
+    font-size: 13px;
+  }
+  .nav-cta { padding: 6px 12px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
