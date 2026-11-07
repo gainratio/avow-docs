@@ -25,6 +25,7 @@ for (const path of PAGES) {
   const description = html.match(/<meta[^>]+name="description"[^>]+content="([^"]*)"/i)?.[1]?.trim() ?? "";
   const canonical = html.match(/<link[^>]+rel="canonical"[^>]+href="([^"]+)"/i)?.[1] ?? "";
   const h1s = html.match(/<h1\b/gi)?.length ?? 0;
+  const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1]);
   const expected = `https://avow.gainratio.com${route(path)}`;
 
   if (title.length < 20 || title.length > 75) issues.push(`${route(path)} title length ${title.length}`);
@@ -33,6 +34,20 @@ for (const path of PAGES) {
   if (h1s !== 1) issues.push(`${route(path)} h1 count ${h1s}`);
   if (!html.includes("application/ld+json")) issues.push(`${route(path)} missing JSON-LD`);
   if (!sitemap.includes(`<loc>${expected}</loc>`)) issues.push(`${route(path)} missing from sitemap`);
+  if (ids.length !== new Set(ids).size) issues.push(`${route(path)} duplicate id`);
+  for (const match of html.matchAll(/href="([^"]+)"/g)) {
+    const href = match[1];
+    if (href.startsWith("#") && href.length > 1 && !ids.includes(href.slice(1))) {
+      issues.push(`${route(path)} missing anchor ${href}`);
+    }
+    if (href.startsWith("/") && href.includes("#")) {
+      const [targetPath, anchor] = href.split("#");
+      const targetFile = join(ROOT, targetPath, "index.html");
+      if (existsSync(targetFile) && !readFileSync(targetFile, "utf8").includes(`id="${anchor}"`)) {
+        issues.push(`${route(path)} missing anchor ${href}`);
+      }
+    }
+  }
   for (const link of html.matchAll(/href="(\/[^"#?]*\/?)"/g)) {
     const target = link[1];
     if (target === "/") continue;
@@ -53,4 +68,4 @@ if (issues.length > 0) {
   for (const issue of issues) console.error(`- ${issue}`);
   process.exit(1);
 }
-console.log(`Avow site contract passed: ${PAGES.length} pages, metadata, JSON-LD, sitemap, links, assets.`);
+console.log(`Avow site contract passed: ${PAGES.length} pages, metadata, JSON-LD, sitemap, links, anchors, assets.`);
