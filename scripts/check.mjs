@@ -19,6 +19,14 @@ function must(condition, message) {
 const sitemap = readFileSync(join(root, "sitemap.xml"), "utf8");
 const robots = readFileSync(join(root, "robots.txt"), "utf8");
 const headers = readFileSync(join(root, "_headers"), "utf8");
+const llmsPath = join(root, "llms.txt");
+must(existsSync(llmsPath), "llms.txt missing");
+const llms = existsSync(llmsPath) ? readFileSync(llmsPath, "utf8") : "";
+for (const [, canonical] of pages) {
+  must(llms.includes(canonical), `llms.txt missing ${canonical}`);
+}
+must(llms.includes("https://open-source.gainratio.com/"), "llms.txt missing open-source.gainratio.com");
+must(llms.includes("https://github.com/gainratio/avow"), "llms.txt missing github.com/gainratio/avow");
 
 must(robots.includes("Sitemap: https://avow.gainratio.com/sitemap.xml"), "robots.txt missing sitemap");
 for (const req of [
@@ -77,6 +85,21 @@ for (const [file, canonical] of pages) {
   must(sitemap.includes(`<loc>${canonical}</loc>`), `${file}: missing from sitemap.xml`);
   must(!/\sstyle="/i.test(html), `${file}: inline style attribute violates CSP`);
   must(!/\son[a-z]+="/i.test(html), `${file}: inline event handler violates CSP`);
+  for (const scriptTag of html.matchAll(/<script\b[^>]*>/gi)) {
+    const tag = scriptTag[0];
+    const isJsonLd = /\btype="application\/ld\+json"/i.test(tag);
+    const isVerifierModule =
+      file === "index.html" &&
+      /\btype="module"/i.test(tag) &&
+      /\bsrc="\/assets\/verify\.js"/i.test(tag);
+    must(isJsonLd || isVerifierModule, `${file}: disallowed or non-module script tag ${tag}`);
+  }
+  if (file === "index.html") {
+    must(
+      /<script\s+type="module"\s+src="\/assets\/verify\.js"\s*><\/script>/.test(html),
+      'index.html: verify.js must load as <script type="module" src="/assets/verify.js"></script>',
+    );
+  }
 
   for (const match of html.matchAll(/href="([^"]+)"/g)) {
     const href = match[1];
@@ -114,7 +137,16 @@ must(tamperedFromInvalid.approved_by === "mallory", "verify.js: tamperPayloadTex
 
 const distDir = join(root, "dist");
 if (existsSync(distDir)) {
-  for (const forbidden of ["package.json", "README.md", "SECURITY.md", "LICENSE", "scripts"]) {
+  must(existsSync(join(distDir, "llms.txt")), "dist/: missing llms.txt");
+  for (const forbidden of [
+    "package.json",
+    "package-lock.json",
+    "README.md",
+    "CLAUDE.md",
+    "SECURITY.md",
+    "LICENSE",
+    "scripts",
+  ]) {
     must(!readdirSync(distDir).includes(forbidden), `dist/: leaked non-public file ${forbidden}`);
   }
 }

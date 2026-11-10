@@ -1,9 +1,17 @@
 {
   "name": "avow-docs",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
+  "description": "Static documentation and browser receipt verifier for Avow (avow.gainratio.com)",
   "scripts": {
     "build": "node scripts/build.mjs",
-    "check": "node scripts/check.mjs"
+    "check": "node scripts/check.mjs",
+    "test": "node scripts/verify-browser.mjs",
+    "gate": "npm run build && npm run check && npm test",
+    "probe:live": "node scripts/live-probe.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.64.0"
   }
 }

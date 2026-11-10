@@ -1,0 +1,19 @@
+# Avow — Signed JSON Receipts Anyone Can Verify Offline
+
+> Avow turns a JSON record into a portable, tamper-evident Ed25519 receipt over RFC 8785 canonical JSON (JCS). Byte-identical receipts across Python (`avow` on PyPI) and TypeScript (`@gainratio/avow` on npm), verifiable offline with a caller-pinned public key and zero network calls.
+
+- Live Documentation & Browser Verifier: https://avow.gainratio.com/
+- Open Source Hub Overview: https://open-source.gainratio.com/avow/
+- Portfolio Hub: https://open-source.gainratio.com/
+- Source Repository: https://github.com/gainratio/avow
+- Python Package (PyPI): https://pypi.org/project/avow/
+- TypeScript Package (npm): https://www.npmjs.com/package/@gainratio/avow
+- Sitemap: https://avow.gainratio.com/sitemap.xml
+
+## Documentation Pages
+
+- [Home & Interactive Browser Verifier](https://avow.gainratio.com/): Live in-browser WebCrypto Ed25519 + RFC 8785 JCS SHA-256 receipt verification and tamper demonstration, four-command CLI quickstart, receipt schema anatomy, and explicit non-goals.
+- [Getting Started & API Reference](https://avow.gainratio.com/docs/): Install `avow[cli]>=0.5.3` and `@gainratio/avow`, CLI commands (`keygen`, `sign`, `verify`, `ledger`), Python and TypeScript APIs, `avow.receipt/v1` schema, stable error codes (`avow.payload_hash_mismatch`, `avow.signer_mismatch`, `avow.key_permissions_insecure`, `avow.ledger_recovery_required`), and operations guidance.
+- [Runnable Examples](https://avow.gainratio.com/examples/): Copyable CLI release-decision signing, Python library usage, TypeScript verification, hash-linked ledger append/verify, and tamper refusal examples.
+- [Security & Threat Model](https://avow.gainratio.com/security/): What a valid receipt proves (canonical payload integrity + caller-pinned Ed25519 signer), explicit boundaries (not encryption, not a timestamp authority, caller-owned replay nonces, caller-owned key custody), OIDC supply-chain publishing, and private vulnerability reporting.
+- [Changelog & Compatibility](https://avow.gainratio.com/changelog/): Release notes for `0.5.3` (legacy receipt verification), `0.5.2` (`@gainratio/avow` npm scope), `0.5.1` (`avow[cli]` extra), and `0.5.0` (`avow.receipt/v1` schema).

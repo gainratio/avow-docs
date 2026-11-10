@@ -13,6 +13,7 @@ const ROOT_FILES = [
   "_headers",
   "robots.txt",
   "sitemap.xml",
+  "llms.txt",
   "favicon.ico",
   "3007089d3dd9b8f7df54e6171cd80cbe.txt",
 ];
