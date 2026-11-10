@@ -16,6 +16,20 @@ function must(condition, message) {
   if (!condition) failures.push(message);
 }
 
+function hasHttpsUrl(text, expectedHost, expectedPath = "/") {
+  for (const [raw] of text.matchAll(/https?:\/\/[^\s)>\]"`]+/g)) {
+    try {
+      const parsed = new URL(raw.replace(/[.,;:]+$/, ""));
+      if (parsed.protocol === "https:" && parsed.hostname === expectedHost && parsed.pathname === expectedPath) {
+        return true;
+      }
+    } catch {
+      // ignore non-URL tokens
+    }
+  }
+  return false;
+}
+
 const sitemap = readFileSync(join(root, "sitemap.xml"), "utf8");
 const robots = readFileSync(join(root, "robots.txt"), "utf8");
 const headers = readFileSync(join(root, "_headers"), "utf8");
@@ -23,10 +37,11 @@ const llmsPath = join(root, "llms.txt");
 must(existsSync(llmsPath), "llms.txt missing");
 const llms = existsSync(llmsPath) ? readFileSync(llmsPath, "utf8") : "";
 for (const [, canonical] of pages) {
-  must(llms.includes(canonical), `llms.txt missing ${canonical}`);
+  const target = new URL(canonical);
+  must(hasHttpsUrl(llms, target.hostname, target.pathname), `llms.txt missing ${canonical}`);
 }
-must(llms.includes("https://open-source.gainratio.com/"), "llms.txt missing open-source.gainratio.com");
-must(llms.includes("https://github.com/gainratio/avow"), "llms.txt missing github.com/gainratio/avow");
+must(hasHttpsUrl(llms, "open-source.gainratio.com", "/"), "llms.txt missing open-source.gainratio.com");
+must(hasHttpsUrl(llms, "github.com", "/gainratio/avow"), "llms.txt missing github.com/gainratio/avow");
 
 must(robots.includes("Sitemap: https://avow.gainratio.com/sitemap.xml"), "robots.txt missing sitemap");
 for (const req of [

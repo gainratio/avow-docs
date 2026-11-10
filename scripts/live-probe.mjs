@@ -25,9 +25,25 @@ async function fetchRaw(url) {
 async function fetchSite(url) {
   const res = await fetchRaw(url);
   if (res.status === 403 && res.mitigated === "challenge") {
-    return fetchRaw(url.replace(`https://${HOST}`, `https://${PAGES_HOST}`));
+    const fallback = new URL(url);
+    fallback.hostname = PAGES_HOST;
+    return fetchRaw(fallback.href);
   }
   return res;
+}
+
+function hasHttpsUrl(text, expectedHost, expectedPath = "/") {
+  for (const [raw] of text.matchAll(/https?:\/\/[^\s)>\]"`]+/g)) {
+    try {
+      const parsed = new URL(raw.replace(/[.,;:]+$/, ""));
+      if (parsed.protocol === "https:" && parsed.hostname === expectedHost && parsed.pathname === expectedPath) {
+        return true;
+      }
+    } catch {
+      // ignore non-URL tokens
+    }
+  }
+  return false;
 }
 
 const robots = await fetchSite(`${BASE}/robots.txt`);
@@ -36,7 +52,7 @@ if (robots.status !== 200 || !robots.body.toLowerCase().includes("sitemap:")) {
 }
 
 const llms = await fetchSite(`${BASE}/llms.txt`);
-if (llms.status !== 200 || !llms.body.includes("https://open-source.gainratio.com/")) {
+if (llms.status !== 200 || !hasHttpsUrl(llms.body, "open-source.gainratio.com", "/")) {
   failures.push(`llms.txt failed (HTTP ${llms.status})`);
 }
 
