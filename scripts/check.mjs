@@ -35,6 +35,7 @@ const robots = readFileSync(join(root, "robots.txt"), "utf8");
 const headers = readFileSync(join(root, "_headers"), "utf8");
 const llmsPath = join(root, "llms.txt");
 must(existsSync(llmsPath), "llms.txt missing");
+must(existsSync(join(root, "assets/og-image.png")), "assets/og-image.png missing");
 const llms = existsSync(llmsPath) ? readFileSync(llmsPath, "utf8") : "";
 for (const [, canonical] of pages) {
   const target = new URL(canonical);
@@ -84,7 +85,7 @@ for (const [file, canonical] of pages) {
   must(html.includes('name="robots" content="index,follow"'), `${file}: missing index,follow`);
   must(html.includes('href="#main"'), `${file}: missing skip link`);
   must(/<main\b[^>]*\bid="main"/.test(html), `${file}: missing <main id="main">`);
-  for (const og of ["og:type", "og:title", "og:description", "og:url"]) {
+  for (const og of ["og:type", "og:title", "og:description", "og:url", "og:image"]) {
     must(html.includes(`property="${og}"`), `${file}: missing ${og}`);
   }
   const ldMatch = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
